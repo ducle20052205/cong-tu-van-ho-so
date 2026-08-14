@@ -33,7 +33,7 @@ export const Logo = ({ className, uniColor }: { className?: string; uniColor?: b
   return (
     <span className={cn("flex items-center gap-2 text-foreground", className)}>
       <LogoMark uniColor={uniColor} />
-      <span className="text-base font-semibold tracking-tight">DuHoc24</span>
+      <span className="text-base font-semibold tracking-tight">EduPath</span>
     </span>
   );
 };

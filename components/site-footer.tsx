@@ -20,7 +20,7 @@ export function SiteFooter() {
             <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
                 <Mail className="size-4 shrink-0" />
-                <span>hotro@duhoc24.vn</span>
+                <span>hotro@edupath.vn</span>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="size-4 shrink-0" />
@@ -57,7 +57,7 @@ export function SiteFooter() {
 
         <div className="border-t pt-6">
           <p className="text-sm text-muted-foreground">
-            &copy; 2026 DuHoc24. Website mẫu dùng cho mục đích đào tạo.
+            &copy; 2026 EduPath. Website mẫu dùng cho mục đích đào tạo.
           </p>
         </div>
       </div>
