@@ -2,6 +2,7 @@ import { AdminPageHeader } from "@/components/admin/page-header";
 import { Card } from "@/components/ui/card";
 import { ConversationsTable, type ConversationRow } from "@/components/admin/conversations-table";
 import { listConversationsWithMessages } from "@/lib/chat-store";
+import { getLeadsByConversationIds } from "@/lib/lead-store";
 
 // Real visitor data lives in Supabase, not in a fetch Next.js can see —
 // without this, the page would be prerendered once at build time and never
@@ -10,6 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminConversationsPage() {
   const conversations = await listConversationsWithMessages();
+  const leadsByConversation = await getLeadsByConversationIds(conversations.map((c) => c.id));
 
   const rows: ConversationRow[] = conversations.map((conv) => ({
     id: conv.id,
@@ -20,6 +22,7 @@ export default async function AdminConversationsPage() {
       content: m.content,
       createdAt: m.created_at,
     })),
+    lead: leadsByConversation[conv.id],
   }));
 
   return (
