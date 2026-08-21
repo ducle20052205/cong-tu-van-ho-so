@@ -14,6 +14,11 @@ import { formatDateTimeVN, formatVnd } from "@/lib/utils";
 import { servicePackages } from "@/lib/mock-data";
 import { listQuoteRequests } from "@/lib/quote-store";
 
+// Real visitor data lives in Supabase, not in a fetch Next.js can see —
+// without this, the page would be prerendered once at build time and never
+// pick up new quote requests submitted after deploy.
+export const dynamic = "force-dynamic";
+
 const educationLevelLabels: Record<string, string> = {
   thpt: "THPT",
   dai_hoc: "Đại học",

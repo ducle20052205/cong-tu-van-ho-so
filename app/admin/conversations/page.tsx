@@ -3,6 +3,11 @@ import { Card } from "@/components/ui/card";
 import { ConversationsTable, type ConversationRow } from "@/components/admin/conversations-table";
 import { listConversationsWithMessages } from "@/lib/chat-store";
 
+// Real visitor data lives in Supabase, not in a fetch Next.js can see —
+// without this, the page would be prerendered once at build time and never
+// pick up new conversations created after deploy.
+export const dynamic = "force-dynamic";
+
 export default async function AdminConversationsPage() {
   const conversations = await listConversationsWithMessages();
 
