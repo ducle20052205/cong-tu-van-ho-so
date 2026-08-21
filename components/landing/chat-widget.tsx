@@ -29,17 +29,34 @@ export function ChatWidget() {
   const [messages, setMessages] = React.useState<Message[]>(initialMessages);
   const [input, setInput] = React.useState("");
   const [pending, setPending] = React.useState(false);
+  const hydratedRef = React.useRef(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, pending]);
 
+  // Load this visitor's persisted conversation (if any) from the server the
+  // first time they open the widget — never from local/session memory.
+  React.useEffect(() => {
+    if (!open || hydratedRef.current) return;
+    hydratedRef.current = true;
+    fetch("/api/chat")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.messages) && data.messages.length > 0) {
+          setMessages(data.messages);
+        }
+      })
+      .catch(() => {
+        // Keep the default greeting if history can't be loaded.
+      });
+  }, [open]);
+
   async function sendMessage(text: string) {
     const trimmed = text.trim();
     if (!trimmed || pending) return;
 
-    const history = messages;
     setMessages((prev) => [...prev, { from: "user", text: trimmed }]);
     setInput("");
     setPending(true);
@@ -48,7 +65,7 @@ export function ChatWidget() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed, history }),
+        body: JSON.stringify({ message: trimmed }),
       });
       const data = await res.json();
       const reply = res.ok ? data.reply : FALLBACK_ERROR_MESSAGE;

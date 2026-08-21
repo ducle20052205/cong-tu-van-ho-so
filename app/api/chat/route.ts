@@ -1,7 +1,12 @@
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { appendMessage, ensureConversation, getConversationMessages } from "@/lib/chat-store";
 
 const GEMINI_MODEL = "gemini-3.5-flash-lite";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+const CONVERSATION_COOKIE = "chat_conversation_id";
+const CONVERSATION_COOKIE_MAX_AGE = 60 * 60 * 24 * 180; // 180 days
 
 const SYSTEM_INSTRUCTION = `Bạn là trợ lý tư vấn du học của EduPath, trả lời trong khung chat trên trang chủ.
 
@@ -41,11 +46,6 @@ Quy tắc trả lời:
 - Nếu câu hỏi nằm ngoài phạm vi 9 mục trên (kể cả hỏi về trường cụ thể, học bổng cụ thể, visa, giá chính xác, ý kiến cá nhân, chủ đề không liên quan...), hãy trả lời đúng tinh thần mục 9: nói rằng bạn chưa có thông tin về câu hỏi này, và mời người dùng để lại câu hỏi trong khung chat hoặc để lại email/số điện thoại trong form báo giá để đội ngũ tư vấn liên hệ trực tiếp.
 - Luôn trả lời bằng tiếng Việt, giọng thân thiện, ngắn gọn, đúng trọng tâm.`;
 
-interface ChatMessage {
-  from: "bot" | "user";
-  text: string;
-}
-
 interface GeminiPart {
   text: string;
 }
@@ -53,6 +53,20 @@ interface GeminiPart {
 interface GeminiContent {
   role: "user" | "model";
   parts: GeminiPart[];
+}
+
+/** GET: hydrate the widget with this visitor's persisted conversation, if any. */
+export async function GET() {
+  const cookieStore = await cookies();
+  const conversationId = cookieStore.get(CONVERSATION_COOKIE)?.value;
+
+  if (!conversationId) {
+    return NextResponse.json({ messages: [] });
+  }
+
+  const rows = await getConversationMessages(conversationId);
+  const messages = rows.map((r) => ({ from: r.role, text: r.content }));
+  return NextResponse.json({ messages });
 }
 
 export async function POST(request: Request) {
@@ -64,7 +78,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { message?: unknown; history?: unknown };
+  let body: { message?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -76,18 +90,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Thiếu nội dung tin nhắn." }, { status: 400 });
   }
 
-  const history: ChatMessage[] = Array.isArray(body.history) ? body.history : [];
+  const cookieStore = await cookies();
+  const existingConversationId = cookieStore.get(CONVERSATION_COOKIE)?.value;
+  const conversationId = await ensureConversation(existingConversationId);
+  if (conversationId !== existingConversationId) {
+    cookieStore.set(CONVERSATION_COOKIE, conversationId, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: CONVERSATION_COOKIE_MAX_AGE,
+    });
+  }
 
-  const historyContents: GeminiContent[] = history
-    .filter((m): m is ChatMessage => typeof m?.text === "string" && (m.from === "bot" || m.from === "user"))
-    .slice(-20)
-    .map((m) => ({
-      role: m.from === "user" ? ("user" as const) : ("model" as const),
-      parts: [{ text: m.text }],
-    }));
+  // History comes only from the server's own record of this conversation —
+  // never trust a client-supplied history array.
+  const priorMessages = await getConversationMessages(conversationId);
+  const historyContents: GeminiContent[] = priorMessages.slice(-20).map((m) => ({
+    role: m.role === "user" ? ("user" as const) : ("model" as const),
+    parts: [{ text: m.content }],
+  }));
 
   // Gemini requires the conversation to start with a "user" turn — drop any
-  // leading bot messages (e.g. the widget's opening greeting) before sending.
+  // leading bot messages (e.g. a very first stored greeting) before sending.
   const firstUserIndex = historyContents.findIndex((c) => c.role === "user");
   const trimmedHistory = firstUserIndex === -1 ? [] : historyContents.slice(firstUserIndex);
 
@@ -95,6 +120,8 @@ export async function POST(request: Request) {
     ...trimmedHistory,
     { role: "user" as const, parts: [{ text: message }] },
   ];
+
+  await appendMessage(conversationId, "user", message);
 
   const callGemini = () =>
     fetch(`${GEMINI_URL}?key=${apiKey}`, {
@@ -137,6 +164,8 @@ export async function POST(request: Request) {
         { status: 502 },
       );
     }
+
+    await appendMessage(conversationId, "bot", reply);
 
     return NextResponse.json({ reply });
   } catch (err) {

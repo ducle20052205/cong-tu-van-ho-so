@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { cn, formatVnd } from "@/lib/utils";
 import { countries, servicePackages, type ServicePackage } from "@/lib/mock-data";
 
 const degreeLevels = [
@@ -35,23 +35,47 @@ const srOnlyStyle: React.CSSProperties = {
   border: 0,
 };
 
-function formatVnd(value: number) {
-  return value.toLocaleString("vi-VN") + "₫";
-}
-
 export function QuoteForm() {
   const [country, setCountry] = React.useState<string>("");
   const [degreeLevel, setDegreeLevel] = React.useState<string>("dai_hoc");
   const [selectedPackage, setSelectedPackage] = React.useState<ServicePackage>("co_ban");
   const [email, setEmail] = React.useState("");
   const [phone, setPhone] = React.useState("");
-  const [submitted, setSubmitted] = React.useState(false);
+  const [quote, setQuote] = React.useState<number | null>(null);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
-  const chosenPackage = servicePackages.find((p) => p.id === selectedPackage)!;
-
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitted(true);
+    if (!country) {
+      setError("Bạn chưa chọn quốc gia muốn du học.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          country,
+          educationLevel: degreeLevel,
+          servicePackage: selectedPackage,
+          email,
+          phone,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Có lỗi xảy ra, bạn thử lại nhé.");
+        return;
+      }
+      setQuote(data.quote);
+    } catch {
+      setError("Không kết nối được tới máy chủ, bạn thử lại nhé.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -176,20 +200,24 @@ export function QuoteForm() {
               </div>
             </div>
 
-            <Button type="submit" size="lg" className="w-full sm:w-auto">
-              Nhận báo giá
+            <Button type="submit" size="lg" className="w-full sm:w-auto" disabled={submitting}>
+              {submitting ? "Đang xử lý..." : "Nhận báo giá"}
             </Button>
 
-            {submitted && (
+            {error && (
+              <p className="text-sm text-destructive">{error}</p>
+            )}
+
+            {quote !== null && (
               <div className="space-y-3 rounded-xl border border-primary/20 bg-accent p-5">
                 <p className="text-sm text-muted-foreground">Mức giá dự kiến cho bạn</p>
                 <p className="text-3xl font-semibold tracking-tight text-accent-foreground">
-                  {formatVnd(chosenPackage.price)}
+                  {formatVnd(quote)}
                 </p>
                 <div className="flex items-start gap-2 text-sm text-accent-foreground">
                   <Mail className="mt-0.5 size-4 shrink-0" />
                   <span>
-                    Báo giá đã được gửi qua email, đội ngũ sẽ liên hệ trong 24h.
+                    Yêu cầu của bạn đã được ghi nhận, đội ngũ sẽ liên hệ trong 24h.
                   </span>
                 </div>
               </div>

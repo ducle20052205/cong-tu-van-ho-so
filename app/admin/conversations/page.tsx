@@ -1,16 +1,22 @@
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { Card } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { conversations } from "@/lib/mock-data";
+import { ConversationsTable, type ConversationRow } from "@/components/admin/conversations-table";
+import { listConversationsWithMessages } from "@/lib/chat-store";
 
-export default function AdminConversationsPage() {
+export default async function AdminConversationsPage() {
+  const conversations = await listConversationsWithMessages();
+
+  const rows: ConversationRow[] = conversations.map((conv) => ({
+    id: conv.id,
+    startedAt: conv.started_at,
+    messageCount: conv.messages.length,
+    messages: conv.messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+      createdAt: m.created_at,
+    })),
+  }));
+
   return (
     <>
       <AdminPageHeader
@@ -19,24 +25,7 @@ export default function AdminConversationsPage() {
       />
 
       <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Kênh</TableHead>
-              <TableHead>Số tin nhắn</TableHead>
-              <TableHead>Thời gian bắt đầu</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {conversations.map((conv) => (
-              <TableRow key={conv.id}>
-                <TableCell className="font-medium">{conv.channel}</TableCell>
-                <TableCell>{conv.messageCount} tin nhắn</TableCell>
-                <TableCell className="text-muted-foreground">{conv.startedAt}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <ConversationsTable conversations={rows} />
       </Card>
     </>
   );
