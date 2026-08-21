@@ -11,17 +11,20 @@ interface Message {
 }
 
 const quickQuestions = [
-  "Dịch vụ này gồm những gì?",
-  "Mất bao lâu để có kết quả?",
-  "Chi phí dịch vụ là bao nhiêu?",
-  "Cần chuẩn bị giấy tờ gì?",
+  "Tôi muốn du học Mỹ",
+  "Tôi muốn du học Anh",
+  "Tôi đang phân vân giữa vài nước",
+  "Tôi muốn được tư vấn miễn phí",
 ];
 
 const FALLBACK_ERROR_MESSAGE =
   "Xin lỗi, mình đang gặp sự cố kết nối. Bạn thử lại sau ít phút, hoặc để lại email/số điện thoại trong form báo giá để đội ngũ tư vấn liên hệ lại nhé.";
 
 const initialMessages: Message[] = [
-  { from: "bot", text: "Chào bạn! Mình là trợ lý ảo của EduPath, bạn cần hỗ trợ gì về hồ sơ du học?" },
+  {
+    from: "bot",
+    text: "Chào bạn! Mình là trợ lý tư vấn du học của EduPath. Bạn đang quan tâm du học nước nào, hay đang phân vân giữa vài nước vậy?",
+  },
 ];
 
 export function ChatWidget() {
